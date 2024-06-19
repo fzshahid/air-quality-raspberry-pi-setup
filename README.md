@@ -100,10 +100,10 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/pi/uart_to_webserver.py
-WorkingDirectory=/home/pi
-StandardOutput=append:/home/pi/uart_to_webserver.log
-StandardError=append:/home/pi/uart_to_webserver.log
+ExecStart=/usr/bin/python3 /home/pi/air-quality-raspberry-pi-setup/uart_to_webserver.py
+WorkingDirectory=/home/pi/air-quality-raspberry-pi-setup
+StandardOutput=append:/home/pi/air-quality-raspberry-pi-setup/uart_to_webserver.log
+StandardError=append:/home/pi/air-quality-raspberry-pi-setup/uart_to_webserver.log
 Restart=on-failure
 RestartSec=10
 User=pi
