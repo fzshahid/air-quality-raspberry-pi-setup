@@ -1,56 +1,49 @@
-
-import serial
+import aiocoap.resource as resource
+import aiocoap
+import asyncio
 import requests
 import json
-import time
+import datetime
 
-# Configure your serial port
-# SERIAL_PORT = '/dev/tty.usbserial-AB0LJ9OT'  # Replace with your actual serial port
-SERIAL_PORT = '/dev/ttyUSB0'  # Replace with your actual serial port
-BAUD_RATE = 115200  # Replace with your baud rate
+class CoAPResource(resource.Resource):
+    def __init__(self):
+        super().__init__()
+        self.csv_filename = 'training_data.csv'
+        self.last_hour = datetime.datetime.now().hour
 
-# plink -serial /dev/tty.usbserial-AB0LJ9OT -sercfg 115200,8,1,N,N
+    async def render_put(self, request):
+        payload_str = request.payload.decode('utf-8')
+        print('data received!')
+        print(f"Received payload: {payload_str}")
+        payload = json.loads(payload_str)
+        payload = {
+            "temperature": payload['Tp'],
+            "humidity": payload['Hm'],
+            "co2": payload['CO'],
+            "pm1_0": payload['1p0'],
+            "pm2_5": payload['2p5'],
+            "pm4": payload['4p0'],
+            "pm10": payload['10p0'],
+            "eco2": payload['eCO'],
+            "partical_size": payload['ps'],
+            "tvoc": payload['tv'],
+        }
 
-# Configure your web server endpoint
-SERVER_URL = 'https://airquality.faizan.me/api/store-ccs811-readings'  # Replace with your server URL
+        SERVER_URL = 'https://airquality.faizan.me/api/air-quality-readings'
+        headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+        response = requests.post(SERVER_URL, data=json.dumps(payload), headers=headers)
 
-# Open serial port
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+        return aiocoap.Message(code=aiocoap.CHANGED, payload="")
 
-try:
-    while True:
-        # Read data from serial port
-        # if 1 > 0:
-        if ser.in_waiting > 0:
-            data = ser.readline().decode('utf-8').rstrip()
-            print(f'Received data: {data}')
-            
-            # Example: Prepare data to send to server
-            payload = {
-                'temperature': 1,
-                'humidity': 1,
-                'eco2': 450,
-                'tvoc': 1,
-                'data': data,
-                'timestamp': int(time.time())
-            }
-            
-            # Send data to server via POST request
-            headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-            response = requests.post(SERVER_URL, data=json.dumps(payload), headers=headers)
-            
-            # Check response status
-            if response.status_code == 200:
-                print('Data sent successfully')
-            else:
-                print(f'Failed to send data. Status code: {response.status_code}')
-        
-        # Optional: Adjust delay based on your application needs
-        time.sleep(10)
-        
-except KeyboardInterrupt:
-    print('Interrupted. Closing serial port.')
-    ser.close()
-except Exception as e:
-    print(f'Error: {str(e)}')
-    ser.close()
+
+def main():
+    # Resource tree creation
+    root = resource.Site()
+    root.add_resource(['storedata'], CoAPResource())
+    print('Binding asyncio task on 5683 port.')
+    asyncio.Task(aiocoap.Context.create_server_context(root, bind=('::', 5683)))
+
+    asyncio.get_event_loop().run_forever()
+
+if __name__ == "__main__":
+    main()
